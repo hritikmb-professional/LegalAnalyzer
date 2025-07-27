@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Contract Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #2d3748;
+            border-radius: 1rem;
+            padding: 2.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 960px;
+            margin-top: 2rem;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .custom-file-upload {
+            border: 2px dashed #4a5568;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease-in-out;
+            text-align: center;
+            color: #a0aec0;
+        }
+        .custom-file-upload:hover {
+            border-color: #63b3ed;
+            color: #63b3ed;
+            background-color: #2c3e50;
+        }
+        .btn {
+            background-color: #4299e1;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s ease-in-out;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn:hover {
+            background-color: #3182ce;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #4299e1;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .message-box {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            font-weight: 500;
+        }
+        .message-box.error {
+            background-color: #fed7d7;
+            color: #c53030;
+        }
+        .message-box.warning {
+            background-color: #feebc8;
+            color: #dd6b20;
+        }
+        .message-box.info {
+            background-color: #bee3f8;
+            color: #2b6cb0;
+        }
+        .message-box.success {
+            background-color: #c6f6d5;
+            color: #2f855a;
+        }
+        .collapsible-header {
+            cursor: pointer;
+            padding: 0.75rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #4a5568;
+            font-weight: 600;
+            color: #a0aec0;
+            transition: color 0.2s ease-in-out;
+        }
+        .collapsible-header:hover {
+            color: #e2e8f0;
+        }
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            padding-top: 0.5rem;
+        }
+        .collapsible-content.open {
+            max-height: 1000px;
+            transition: max-height 0.5s ease-in;
+        }
+        .issue-highlight {
+            background-color: rgba(255, 0, 0, 0.2);
+            padding: 0.1rem 0.3rem;
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center mb-6 text-white">Smart Contract Analyzer</h1>
+        <p class="text-center text-gray-400 mb-8">This tool allows you to analyze smart contracts and ask questions about them.</p>
+
+        <div class="mb-8">
+            <label for="file-upload" class="custom-file-upload block">
+                <span id="file-upload-text">Choose a contract file (PDF or DOCX)</span>
+                <input id="file-upload" type="file" accept=".pdf,.docx">
+            </label>
+            <div id="file-name" class="mt-2 text-center text-gray-400 text-sm"></div>
+        </div>
+
+        <div id="loading-spinner" class="hidden flex justify-center items-center my-8">
+            <div class="spinner"></div>
+            <p class="ml-4 text-gray-400">Processing document, analyzing, and indexing for RAG...</p>
+        </div>
+
+        <div id="analysis-results" class="hidden">
+            <h2 class="text-2xl font-semibold mt-8 mb-4 text-white">Contract Balance</h2>
+            <div class="text-gray-400 mb-2">Contract Favorability:</div>
+            <div class="flex items-center space-x-4 mb-6">
+                <span class="text-gray-400">Employer</span>
+                <div class="flex-grow bg-gray-700 rounded-full h-4 relative">
+                    <div id="balance-bar" class="bg-blue-500 h-full rounded-full transition-all duration-500 ease-out" style="width: 50%;"></div>
+                </div>
+                <span class="text-gray-400">Employee</span>
+            </div>
+            <div id="balance-score-text" class="text-lg font-medium text-center mb-4"></div>
+            <div id="balance-explanation" class="text-gray-400 text-sm mb-8"></div>
+
+            <h2 class="text-2xl font-semibold mb-4 text-white">Key Clauses</h2>
+            <div id="key-clauses-container">
+            </div>
+
+            <h2 class="text-2xl font-semibold mt-8 mb-4 text-white">Overall Assessment</h2>
+            <p id="overall-assessment-text" class="text-gray-400 mb-8"></p>
+
+            <h2 class="text-2xl font-semibold mt-8 mb-4 text-white">Ask a Follow-up Question</h2>
+            <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                <input type="text" id="user-question" placeholder="Enter your question about the contract:"
+                       class="flex-grow p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400">
+                <button id="ask-question-btn" class="btn flex-shrink-0">Ask Question</button>
+            </div>
+            <div id="follow-up-loading" class="hidden flex justify-center items-center my-4">
+                <div class="spinner w-8 h-8"></div>
+                <p class="ml-4 text-gray-400">Getting answer (using RAG)...</p>
+            </div>
+            <div id="follow-up-answer" class="hidden">
+                <h3 class="text-xl font-medium mt-6 mb-2 text-white">Answer:</h3>
+                <p id="follow-up-answer-text" class="text-gray-400 mb-4"></p>
+                <h3 class="text-xl font-medium mb-2 text-white">Explanation:</h3>
+                <p id="follow-up-explanation-text" class="text-gray-400 mb-8"></p>
+            </div>
+        </div>
+
+        <div id="message-box" class="message-box hidden"></div>
+    </div>
+
+    <script type="module">
+        class LLMIntegration {
+            constructor(backendUrl = "http://127.0.0.1:5000") {
+                this.backendUrl = backendUrl;
+            }
+
+            async analyzeContract(file) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                console.log("Sending document to backend for analysis and RAG indexing...");
+                try {
+                    const response = await fetch(`${this.backendUrl}/upload_document`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || `Backend error: ${response.status}`);
+                    }
+                    
+                    console.log("Backend response for upload:", result);
+                    return result.analysis; 
+
+                } catch (e) {
+                    console.error("Failed to upload document to backend:", e);
+                    throw new Error(`Failed to process document via backend: ${e.message}`);
+                }
+            }
+
+            async getFollowupAnalysis(question) {
+                console.log("Sending question to backend for RAG processing...");
+                try {
+                    const response = await fetch(`${this.backendUrl}/ask_question`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ question: question })
+                    });
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || `Backend error: ${response.status}`);
+                    }
+                    
+                    console.log("Follow-up response from backend:", result);
+                    return result;
+
+                } catch (e) {
+                    console.error("Failed to get follow-up analysis from backend:", e);
+                    throw new Error(`Error getting answer from AI: ${e.message}. Ensure backend is running and document is indexed.`);
+                }
+            }
+        }
+
+        const fileUploadInput = document.getElementById('file-upload');
+        const fileUploadText = document.getElementById('file-upload-text');
+        const fileNameDisplay = document.getElementById('file-name');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const analysisResultsDiv = document.getElementById('analysis-results');
+        const balanceBar = document.getElementById('balance-bar');
+        const balanceScoreText = document.getElementById('balance-score-text');
+        const balanceExplanation = document.getElementById('balance-explanation');
+        const keyClausesContainer = document.getElementById('key-clauses-container');
+        const overallAssessmentText = document.getElementById('overall-assessment-text');
+        const userQuestionInput = document.getElementById('user-question');
+        const askQuestionBtn = document.getElementById('ask-question-btn');
+        const followUpLoading = document.getElementById('follow-up-loading');
+        const followUpAnswerDiv = document.getElementById('follow-up-answer');
+        const followUpAnswerText = document.getElementById('follow-up-answer-text');
+        const followUpExplanationText = document.getElementById('follow-up-explanation-text');
+        const messageBox = document.getElementById('message-box');
+
+        let isDocumentIndexed = false;
+
+        const llmIntegration = new LLMIntegration();
+
+        function showMessage(message, type = 'info') {
+            messageBox.textContent = message;
+            messageBox.className = `message-box ${type}`;
+            messageBox.classList.remove('hidden');
+        }
+
+        function hideMessage() {
+            messageBox.classList.add('hidden');
+        }
+
+        fileUploadInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                fileNameDisplay.textContent = '';
+                analysisResultsDiv.classList.add('hidden');
+                hideMessage();
+                isDocumentIndexed = false;
+                return;
+            }
+
+            fileNameDisplay.textContent = `Selected file: ${file.name}`;
+            analysisResultsDiv.classList.add('hidden');
+            hideMessage();
+            loadingSpinner.classList.remove('hidden');
+
+            try {
+                const analysisResult = await llmIntegration.analyzeContract(file);
+                displayAnalysisResults(analysisResult); 
+                isDocumentIndexed = true;
+                showMessage("Document uploaded, analyzed, and indexed successfully!", 'success');
+
+            } catch (error) {
+                console.error("Error during document upload/analysis:", error);
+                showMessage(`Error processing document: ${error.message}`, 'error');
+                analysisResultsDiv.classList.add('hidden'); 
+                isDocumentIndexed = false;
+            } finally {
+                loadingSpinner.classList.add('hidden');
+            }
+        });
+
+        askQuestionBtn.addEventListener('click', async () => {
+            const question = userQuestionInput.value.trim();
+            if (!question) {
+                showMessage("Please enter a question.", 'warning');
+                return;
+            }
+            if (!isDocumentIndexed) {
+                showMessage("Please upload and process a contract first.", 'warning');
+                return;
+            }
+
+            followUpAnswerDiv.classList.add('hidden');
+            hideMessage();
+            followUpLoading.classList.remove('hidden');
+
+            try {
+                const followupResult = await llmIntegration.getFollowupAnalysis(question);
+                displayFollowUpResults(followupResult);
+            } catch (error) {
+                console.error("Error during follow-up question:", error);
+                showMessage(`Error getting answer: ${error.message}`, 'error');
+                followUpAnswerDiv.classList.add('hidden');
+            } finally {
+                followUpLoading.classList.add('hidden');
+            }
+        });
+
+        function displayAnalysisResults(analysis) {
+            analysisResultsDiv.classList.remove('hidden');
+            
+            const balanceScore = analysis.balance_score;
+            if (typeof balanceScore === 'number' && balanceScore >= 0 && balanceScore <= 100) {
+                balanceBar.style.width = `${balanceScore}%`;
+                balanceScoreText.textContent = `Score: ${balanceScore}/100`;
+
+                let scoreMessage = "";
+                let messageType = "info";
+                if (balanceScore < 20) {
+                    scoreMessage = "The contract heavily favors the employer, potentially to an unfair degree. Major revisions may be necessary to ensure fairness.";
+                    messageType = "error";
+                } else if (balanceScore < 40) {
+                    scoreMessage = "The contract significantly favors the employer. Some clauses may need to be renegotiated to better protect the employee's interests.";
+                    messageType = "warning";
+                } else if (balanceScore < 60) {
+                    scoreMessage = "The contract slightly favors the employer. While not drastically unbalanced, there may be room for improvement in certain areas.";
+                    messageType = "info";
+                } else if (balanceScore < 80) {
+                    scoreMessage = "The contract is relatively balanced, with a slight favor towards the employee. This is generally a good sign, but review all clauses carefully.";
+                    messageType = "success";
+                } else {
+                    scoreMessage = "The contract appears to favor the employee more than usual. While this may be beneficial for the employee, ensure all terms are legally sound and sustainable for both parties.";
+                    messageType = "success";
+                }
+                balanceExplanation.textContent = scoreMessage;
+            } else {
+                balanceBar.style.width = '50%';
+                balanceScoreText.textContent = 'Score: N/A';
+                balanceExplanation.textContent = 'Could not determine a valid balance score from the analysis.';
+                showMessage("Could not determine a valid balance score from the analysis.", 'warning');
+            }
+
+            keyClausesContainer.innerHTML = '';
+            if (Array.isArray(analysis.key_clauses) && analysis.key_clauses.length > 0) {
+                analysis.key_clauses.forEach((clause, index) => {
+                    const clauseDiv = document.createElement('div');
+                    clauseDiv.className = 'mb-4 border border-gray-700 rounded-lg p-4';
+
+                    const header = document.createElement('div');
+                    header.className = 'collapsible-header';
+                    header.innerHTML = `
+                        <span>Clause Type: ${clause.type || 'N/A'}</span>
+                        <span class="arrow-icon">&#9660;</span>
+                    `;
+                    clauseDiv.appendChild(header);
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'collapsible-content';
+
+                    const contentP = document.createElement('p');
+                    let displayContent = clause.content || 'No content provided.';
+                    if (Array.isArray(clause.issues) && clause.issues.length > 0) {
+                        clause.issues.forEach(issue => {
+                            if (typeof issue === 'string') {
+                                displayContent = displayContent.split(issue).join(`<span class="issue-highlight">${issue}</span>`);
+                            }
+                        });
+                    }
+                    contentP.innerHTML = `<strong>Content:</strong> ${displayContent}`;
+                    contentP.className = 'text-gray-300 text-sm mb-2';
+                    contentDiv.appendChild(contentP);
+
+                    const analysisP = document.createElement('p');
+                    analysisP.innerHTML = `<strong>Analysis:</strong> ${clause.analysis || 'No analysis provided.'}`;
+                    analysisP.className = 'text-gray-300 text-sm mb-2';
+                    contentDiv.appendChild(analysisP);
+
+                    if (Array.isArray(clause.issues) && clause.issues.length > 0) {
+                        const issuesDiv = document.createElement('div');
+                        issuesDiv.className = 'text-red-400 text-sm mt-2';
+                        issuesDiv.innerHTML = '<strong>Issues detected in this clause:</strong>';
+                        const ul = document.createElement('ul');
+                        ul.className = 'list-disc list-inside ml-4';
+                        clause.issues.forEach(issue => {
+                            if (typeof issue === 'string') {
+                                const li = document.createElement('li');
+                                li.textContent = issue;
+                                ul.appendChild(li);
+                            }
+                        });
+                        issuesDiv.appendChild(ul);
+                        contentDiv.appendChild(issuesDiv);
+                    }
+
+                    clauseDiv.appendChild(contentDiv);
+                    keyClausesContainer.appendChild(clauseDiv);
+
+                    header.addEventListener('click', () => {
+                        contentDiv.classList.toggle('open');
+                        const arrow = header.querySelector('.arrow-icon');
+                        if (contentDiv.classList.contains('open')) {
+                            arrow.innerHTML = '&#9650;';
+                        } else {
+                            arrow.innerHTML = '&#9660;';
+                        }
+                    });
+                });
+            } else {
+                keyClausesContainer.innerHTML = '<p class="text-gray-400">No key clauses were identified or the format was unexpected.</p>';
+            }
+
+            overallAssessmentText.textContent = analysis.overall_assessment || 'No overall assessment available.';
+        }
+
+        function displayFollowUpResults(result) {
+            followUpAnswerDiv.classList.remove('hidden');
+            followUpAnswerText.textContent = result.answer || 'N/A';
+            followUpExplanationText.textContent = result.explanation || 'N/A';
+        }
+
+        hideMessage();
+        analysisResultsDiv.classList.add('hidden');
+        followUpAnswerDiv.classList.add('hidden');
+        loadingSpinner.classList.add('hidden');
+        followUpLoading.classList.add('hidden');
+
+    </script>
+</body>
+</html>
